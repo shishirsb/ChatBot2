@@ -1,10 +1,9 @@
 from docling.document_converter import DocumentConverter
 from langchain_core.documents import Document
 
-stored_path = 'removed/docs/pdf/DBS booklet New_final_whatsapp_spread.pdf'
+stored_path = 'sample_docs/master-36-module-2-Grundfos-pump-types.pdf'
 converter = DocumentConverter()
-conversion_result = converter.convert(str(stored_path),
-                                      page_range=(1, 30))
+conversion_result = converter.convert(str(stored_path))
 docling_doc = conversion_result.document
 # ------------------------------------------
 # Group Docling elements by PDF page

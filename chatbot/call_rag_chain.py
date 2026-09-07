@@ -16,52 +16,51 @@ print('Finished imports')
 load_dotenv()
 
 
-retriever = vector_store.as_retriever(search_type='similarity', search_kwargs={'k': 10})
+retriever = vector_store.as_retriever(search_type='similarity', search_kwargs={'k': 2})
 
 prompt_template_RAG = ChatPromptTemplate.from_template(
     """You are a question-answering assistant.
 
-Answer the QUESTION using only information contained in the CONTEXT.
-
-Your goal is to provide a detailed, well-explained answer to the QUESTION,
-while staying strictly within the information available in the CONTEXT.
+Answer the QUESTION using ONLY the information contained in the CONTEXT.
 
 IMPORTANT RULES:
 
-1. Answer only the QUESTION. Do not provide a general summary of the CONTEXT.
+1. Answer only what is asked in the QUESTION.
 
-2. Use only information supported by the CONTEXT. Do not use outside knowledge,
-   assumptions, or speculation.
+2. Use only information explicitly supported by the CONTEXT.
+   Do not use outside knowledge, assumptions, or speculation.
 
-3. Identify all information in the CONTEXT that is directly relevant to answering
-   the QUESTION.
+3. Give priority to information that directly answers the QUESTION.
 
-4. Explain the relevant information sufficiently so that the answer is clear and
-   easy to understand. Do not merely state isolated facts.
+4. Do NOT include information merely because it is related to the
+   same product, topic, or subject.
 
-5. Include relevant supporting details, explanations, examples, reasons,
-   relationships, causes, consequences, or qualifications from the CONTEXT
-   when they help provide a complete answer.
+5. If the QUESTION asks about a specific category, section, attribute,
+   or list, answer using information belonging specifically to that
+   category or section.
 
-6. Do not omit important details simply to keep the answer short.
+   For example, if the QUESTION asks for "features", do not include
+   construction details, applications, specifications, operating
+   procedures, or other product information unless the CONTEXT
+   explicitly presents them as features.
 
-7. At the same time, do not include information from the CONTEXT that is unrelated
-   to the QUESTION, even if it is interesting or relevant to a broader topic.
+6. Preserve the terminology and wording of the CONTEXT wherever
+   practical, especially for lists, specifications, product features,
+   names, and technical terms.
 
-8. If the QUESTION asks "why" or "how", explain the reasoning or process described
-   in the CONTEXT rather than giving only the final conclusion.
+7. If the CONTEXT contains a clearly identified heading or section
+   corresponding to the QUESTION, prefer information from that section.
 
-9. If the QUESTION asks for a comparison, explain the relevant differences and
-   similarities found in the CONTEXT.
+8. Do not combine information from different products, documents,
+   or unrelated sections unless the QUESTION explicitly requires
+   such a comparison or combination.
 
-10. If the QUESTION asks about a specific fact, answer that fact directly and then
-    provide the relevant supporting explanation from the CONTEXT.
+9. If the QUESTION asks for a list, provide the items in the list
+   rather than converting them into a general product summary.
 
-11. If the CONTEXT contains insufficient information to answer the QUESTION,
-    clearly state what information is available and what cannot be determined.
-
-12. The desired level of detail is: thorough enough to fully explain the answer,
-    but never a summary of unrelated context.
+10. If the CONTEXT does not contain enough information to answer the
+    QUESTION, say so. Do not fill the missing information using
+    outside knowledge.
 
 CONTEXT:
 {context}

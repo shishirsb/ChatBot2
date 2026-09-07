@@ -6,8 +6,6 @@ from knowledge_base.interpret_image import describe_image
 from knowledge_base.load_image_to_memory import load_image_to_memory
 from imports.vector_store import vector_store
 import gradio as gr
-from langchain_core.documents import Document
-from docling.document_converter import DocumentConverter
 from docling.datamodel.document import PictureItem
 import os
 from knowledge_base.resize_image import resize_image
@@ -16,6 +14,9 @@ from PIL import Image
 import traceback
 from langsmith import traceable
 from datetime import datetime
+from docling.document_converter import DocumentConverter
+from langchain_core.documents import Document
+import fitz
 
 
 class Loader:
@@ -46,127 +47,175 @@ class Loader:
                 path = Path(file.name)
                 filename = path.name
 
+
+
                 stored_path = UPLOAD_DIR / filename
+
+                if stored_path.exists():
+                    raise FileExistsError(
+                        f"File already exists in knowledge base: {filename}"
+                    )
                 shutil.copy2(path, stored_path)
 
                 path = stored_path
 
-            loader = DoclingLoader(file_path=str(stored_path), export_type=ExportType.DOC_CHUNKS)
-            progress_state['progress_value'] += 0.05
+            # loader = DoclingLoader(file_path=str(stored_path), export_type=ExportType.DOC_CHUNKS)
+            # stored_path = 'sample_docs/master-36-module-2-Grundfos-pump-types.pdf'
 
-            converter = DocumentConverter()
-            result = converter.convert(path)
-            docling_doc = result.document
+            with fitz.open(str(path)) as pdf:
+                pages = len(pdf)
+                print(f'Pages: {pages}')
 
-            num_images = sum(
-                1
-                for item, level in docling_doc.iterate_items()
-                if isinstance(item, PictureItem)
-            )
-
-            estimated_time_for_images = num_images * 65
-            total_estimated_time = estimated_time_for_images
-
+            time_estimate = 12.2 * pages
             progress(
                 progress_state['progress_value'],
                 desc=f"Loading: {filename}"
-                     f"\n Total time Estimate: {total_estimated_time / 60:.1f} minutes")
+                     f"\n ( {time_estimate / 60:.1f} minutes) ")
 
+            converter = DocumentConverter()
+            conversion_result = converter.convert(str(path))
+            docling_doc = conversion_result.document
+            progress_state['progress_value'] += 0.15
+
+            estimated_time_for_images = 0
+            total_estimated_time = estimated_time_for_images
+
+            page_content = {}
+            for item, level in docling_doc.iterate_items():
+                if not item.prov:
+                    continue
+                page_no = item.prov[0].page_no
+                bbox = item.prov[0].bbox
+                # Get text representation of the item
+                try:
+                    text = item.export_to_markdown(docling_doc)
+                except Exception:
+                    try:
+                        text = item.text
+                    except AttributeError:
+                        text = ""
+
+                if not text:
+                    continue
+
+                # page_content.setdefault(page_no, []).append(text)
+                page_content.setdefault(page_no, []).append({
+                    "text": text,
+                    "bbox": bbox,
+                })
 
             docs = []
-            for i, doc in enumerate(loader.lazy_load(), start=1):
-                try:
-                    doc = clean_doc_metadata(doc)
-                    docs.append(doc)
-                    progress_state['progress_value'] += 0.01
-                    progress(
-                        progress_state['progress_value'],
-                        desc=f"Loading: {filename}"
-                             f"\n Total time Estimate: {total_estimated_time / 60:.1f} minutes")
-                except Exception as e:
-                    print(f'Exception occurred while processing {i}th chunk: {e}')
 
-            image_docs = []
-            i=0
+            for page_no in sorted(page_content):
 
-            for item, level in docling_doc.iterate_items():
-                if not isinstance(item, PictureItem):
-                    continue
-                page_no = item.prov[0].page_no if item.prov else None
-                print("\n--- IMAGE FOUND ---")
-                print(f"Page: {page_no}")
 
-                image = item.get_image(docling_doc)
+                X_RANGE = 20
 
-                print(f"Original image size: {image.size if image else None}")
-
-                if image is None:
-                    print("Could not extract image")
-                    continue
-
-                i += 1
-
-                # Resize before sending to vision model
-                image = resize_image(image, max_size=512)
-
-                print(f"Resized image size: {image.size}")
-
-                MAX_RETRIES = 2
-
-                description = None
-
-                for attempt in range(1, MAX_RETRIES + 1):
-
-                    print(
-                        f"Describing image {i}/{num_images} "
-                        f"(attempt {attempt})..."
+                items = sorted(
+                    page_content[page_no],
+                    key=lambda item: (
+                        # round(item["bbox"].l / X_RANGE),
+                        int(item["bbox"].l / X_RANGE),
+                        -item["bbox"].t
                     )
-
-                    description = describe_image(image)
-
-                    print(type(description))
-                    print(description[:100])
-
-                    if description:
-                        print(type(description))
-                        print(description[:100])
-                        print("No description returned.")
-                        break
-
-
-
-                if not description:
-                    print(
-                        f"Failed to describe image {i} "
-                        f"after {MAX_RETRIES} attempts"
-                    )
-                    continue
-
-                metadata = {
-                    "source": str(stored_path)
-                }
-
-                if page_no is not None:
-                    metadata["pages"] = [page_no]
-
-                image_doc = Document(
-                    page_content=description,
-                    metadata=metadata
                 )
 
-                image_docs.append(image_doc)
-                progress_state['progress_value'] += 0.02
-                progress(
-                    progress_state['progress_value'],
-                    desc=f"Loading: {filename} \n"
-                         f"\n Total time Estimate: {total_estimated_time / 60:.1f} minutes")
-                print(f"Image document added. Total: {len(image_docs)}")
+                content = "\n\n".join(
+                    item["text"]
+                    for item in items
+                )
+
+                doc = Document(
+                    page_content=content,
+                    metadata={
+                        "source": str(stored_path),
+                        "page": page_no,
+                    }
+                )
+
+                docs.append(doc)
+
+            # image_docs = []
+            # i=0
+            #
+            # for item, level in docling_doc.iterate_items():
+            #     if not isinstance(item, PictureItem):
+            #         continue
+            #     page_no = item.prov[0].page_no if item.prov else None
+            #     print("\n--- IMAGE FOUND ---")
+            #     print(f"Page: {page_no}")
+            #
+            #     image = item.get_image(docling_doc)
+            #
+            #     print(f"Original image size: {image.size if image else None}")
+            #
+            #     if image is None:
+            #         print("Could not extract image")
+            #         continue
+            #
+            #     i += 1
+            #
+            #     # Resize before sending to vision model
+            #     image = resize_image(image, max_size=512)
+            #
+            #     print(f"Resized image size: {image.size}")
+            #
+            #     MAX_RETRIES = 2
+            #
+            #     description = None
+            #
+            #     for attempt in range(1, MAX_RETRIES + 1):
+            #
+            #         print(
+            #             f"Describing image {i}/{num_images} "
+            #             f"(attempt {attempt})..."
+            #         )
+            #
+            #         description = describe_image(image)
+            #
+            #         print(type(description))
+            #         print(description[:100])
+            #
+            #         if description:
+            #             print(type(description))
+            #             print(description[:100])
+            #             print("No description returned.")
+            #             break
+            #
+            #
+            #
+            #     if not description:
+            #         print(
+            #             f"Failed to describe image {i} "
+            #             f"after {MAX_RETRIES} attempts"
+            #         )
+            #         continue
+            #
+            #     metadata = {
+            #         "source": str(stored_path)
+            #     }
+            #
+            #     if page_no is not None:
+            #         metadata["pages"] = [page_no]
+            #
+            #     image_doc = Document(
+            #         page_content=description,
+            #         metadata=metadata
+            #     )
+            #
+            #     image_docs.append(image_doc)
+            #     progress_state['progress_value'] += 0.02
+            #     progress(
+            #         progress_state['progress_value'],
+            #         desc=f"Loading: {filename} \n"
+            #              f"\n Total time Estimate: {total_estimated_time / 60:.1f} minutes")
+            #     print(f"Image document added. Total: {len(image_docs)}")
 
             progress(
                 progress_state['progress_value'],
                 desc=f"Loaded document: {filename}")
 
-            return docs + image_docs
+            return docs
         except Exception as e:
             print(e)
             traceback.print_exc()
@@ -358,7 +407,7 @@ class Loader:
                             extension = Path(file.name).suffix.lower()
                             print(f'Extension: {extension}')
 
-                            if extension in [".pdf", '.txt', '.pptx', '.docx']:
+                            if extension in [".pdf"]:
                                 all_docs.extend(self.load_document(file, progress_state=progress_state))
                                 progress_state['progress_value'] += 0.1
                                 progress(
@@ -400,7 +449,7 @@ class Loader:
             progress_state['progress_value'] = 0.6
             progress(progress_state['progress_value'], desc="Load documents completed...")
 
-            batch_size = 20
+            batch_size = 256
 
             for batch_num, i in enumerate(range(0, len(all_doc_chunks), batch_size), start=1):
                 batch = all_doc_chunks[i:i + batch_size]

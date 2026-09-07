@@ -11,17 +11,25 @@ def format_sources(retrieved_docs):
 
         source = metadata.get("source", "")
         heading = metadata.get("heading")
-        pages = metadata.get("pages") or []
+        # pages = metadata.get("pages") or []
+        #
+        # # Normalize pages so they can be used in a set
+        # pages = tuple(sorted(pages))
+        #
+        # # Deduplicate based on ALL THREE:
+        # # source + heading + pages
+        # source_key = (
+        #     source,
+        #     heading,
+        #     pages
+        # )
 
-        # Normalize pages so they can be used in a set
-        pages = tuple(sorted(pages))
+        page = metadata.get("page")
 
-        # Deduplicate based on ALL THREE:
-        # source + heading + pages
         source_key = (
             source,
             heading,
-            pages
+            page
         )
 
         if source_key in seen:
@@ -43,6 +51,23 @@ def format_sources(retrieved_docs):
         # PDF / file source
         # -------------------------
         else:
+            # filename = Path(source).name if source else "Unknown"
+            #
+            # source_text = f"- **File:** {filename}\n"
+            #
+            # if heading:
+            #     source_text += f"- **Section:** {heading}\n"
+            #
+            # if len(pages) == 1:
+            #     page_text = str(pages[0])
+            # elif pages:
+            #     page_text = f"{pages[0]}-{pages[-1]}"
+            # else:
+            #     page_text = None
+            #
+            # if page_text:
+            #     source_text += f"- **Pages:** {page_text}\n"
+
             filename = Path(source).name if source else "Unknown"
 
             source_text = f"- **File:** {filename}\n"
@@ -50,15 +75,10 @@ def format_sources(retrieved_docs):
             if heading:
                 source_text += f"- **Section:** {heading}\n"
 
-            if len(pages) == 1:
-                page_text = str(pages[0])
-            elif pages:
-                page_text = f"{pages[0]}-{pages[-1]}"
-            else:
-                page_text = None
+            page = metadata.get("page")
 
-            if page_text:
-                source_text += f"- **Pages:** {page_text}\n"
+            if page is not None:
+                source_text += f"- **Page:** {page}\n"
 
         unique_sources.append(source_text)
 

@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 import base64
 from io import BytesIO
-from imports.AI_models import vision_model
+# from imports.AI_models import vision_model
 from langchain_core.documents import Document
 from docling.document_converter import DocumentConverter
 from docling.datamodel.document import PictureItem
