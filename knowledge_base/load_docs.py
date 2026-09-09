@@ -4,10 +4,8 @@ from knowledge_base.clean_doc_metadata import clean_doc_metadata
 from knowledge_base.extract_image_candidates import extract_image_candidates
 from knowledge_base.interpret_image import describe_image
 from knowledge_base.load_image_to_memory import load_image_to_memory
-from imports.vector_store import vector_store
+from imports.vector_store import get_vector_Store
 import gradio as gr
-from docling.datamodel.document import PictureItem
-import os
 from knowledge_base.resize_image import resize_image
 import shutil
 from PIL import Image
@@ -17,6 +15,7 @@ from datetime import datetime
 from docling.document_converter import DocumentConverter
 from langchain_core.documents import Document
 import fitz
+from imports.config import UPLOAD_DIR
 
 
 class Loader:
@@ -25,11 +24,8 @@ class Loader:
         try:
             progress = progress_state['progress']
 
-            PROJECT_ROOT = Path(__file__).resolve().parent
-            UPLOAD_DIR = PROJECT_ROOT / "uploads"
-            print(f'PROJECT_ROOT: {PROJECT_ROOT}')
             print(f'UPLOAD_DIR: {UPLOAD_DIR}')
-            UPLOAD_DIR.mkdir(exist_ok=True)
+            # UPLOAD_DIR.mkdir(exist_ok=True)
 
             if type(file) == str:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -47,8 +43,6 @@ class Loader:
                 path = Path(file.name)
                 filename = path.name
 
-
-
                 stored_path = UPLOAD_DIR / filename
 
                 if stored_path.exists():
@@ -59,8 +53,6 @@ class Loader:
 
                 path = stored_path
 
-            # loader = DoclingLoader(file_path=str(stored_path), export_type=ExportType.DOC_CHUNKS)
-            # stored_path = 'sample_docs/master-36-module-2-Grundfos-pump-types.pdf'
 
             with fitz.open(str(path)) as pdf:
                 pages = len(pdf)
@@ -218,6 +210,14 @@ class Loader:
             return docs
         except Exception as e:
             print(e)
+            # Remove file from uploads directory
+            try:
+                if path.exists():
+                    path.unlink()
+                    print(f"Removed file: {path}")
+            except Exception as cleanup_error:
+                print(f"Failed to remove file: {cleanup_error}")
+
             traceback.print_exc()
             raise
 
@@ -450,6 +450,7 @@ class Loader:
             progress(progress_state['progress_value'], desc="Load documents completed...")
 
             batch_size = 256
+            vector_store = get_vector_Store()
 
             for batch_num, i in enumerate(range(0, len(all_doc_chunks), batch_size), start=1):
                 batch = all_doc_chunks[i:i + batch_size]
@@ -469,5 +470,14 @@ class Loader:
             """
         except Exception as e:
             print(e)
+            # Delete ALL files from uploads directory
+            try:
+                for file_path in UPLOAD_DIR.iterdir():
+                    if file_path.is_file():
+                        file_path.unlink()
+                        print(f"Removed file: {file_path}")
+
+            except Exception as cleanup_error:
+                print(f"Failed to clean uploads directory: {cleanup_error}")
             return f"Exception occurred while loading documents: {e}"
 

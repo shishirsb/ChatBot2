@@ -1,0 +1,14 @@
+gradio
+langchain-core
+langchain-openai
+langchain-chroma
+langchain-docling
+chromadb
+docling
+pymupdf
+Pillow
+requests
+beautifulsoup4
+langsmith
+python-dotenv
+keyring

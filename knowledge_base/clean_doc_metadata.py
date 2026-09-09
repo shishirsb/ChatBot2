@@ -1,5 +1,3 @@
-from pathlib import Path
-
 
 def clean_doc_metadata(doc):
 

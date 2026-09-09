@@ -1,9 +1,15 @@
 from chatbot.call_rag_chain import send_text
 import gradio as gr
 
+
 def chat_ui():
     with gr.Group(visible=True):
-        gr.Markdown('# AI Chatbot')
+        gr.Markdown(
+            """
+            ## ✨ Document AI Assistant
+            """
+        )
+
         chatbot = gr.Chatbot(
                     height=500
                 )

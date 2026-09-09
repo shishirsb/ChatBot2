@@ -1,19 +1,25 @@
 
 from dotenv import load_dotenv
+from imports.config import UPLOAD_DIR
 
 load_dotenv()
 
 from ui.interface import create_ui
 
-print("Script started")
+def main():
+    print("Script started")
 
+    demo = create_ui()
+    demo.queue()
 
+    print('launching')
+    demo.launch(
+        inbrowser=True,
+        allowed_paths=[
+            # "knowledge_base/uploads",
+            UPLOAD_DIR,
+        ],
+    )
 
-demo = create_ui()
-demo.queue()
-
-print('launching')
-demo.launch(
-    inbrowser=True,
-    allowed_paths=["knowledge_base/uploads"],
-)
+if __name__ == "__main__":
+    main()

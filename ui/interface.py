@@ -1,8 +1,8 @@
 import gradio as gr
-# from ui import speech_recording
 from ui.knowledge_base import knowledge_base_accordion
-# from ui.speech_recording import speech_recording
 from ui.chatbot import chat_ui
+from ui.settings import settings_accordion
+
 
 
 def create_ui():
@@ -11,5 +11,6 @@ def create_ui():
         chat_ui()
         # speech_recording()
         knowledge_base_accordion()
+        settings_accordion()
 
     return demo

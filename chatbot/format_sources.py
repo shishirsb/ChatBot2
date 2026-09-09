@@ -11,18 +11,6 @@ def format_sources(retrieved_docs):
 
         source = metadata.get("source", "")
         heading = metadata.get("heading")
-        # pages = metadata.get("pages") or []
-        #
-        # # Normalize pages so they can be used in a set
-        # pages = tuple(sorted(pages))
-        #
-        # # Deduplicate based on ALL THREE:
-        # # source + heading + pages
-        # source_key = (
-        #     source,
-        #     heading,
-        #     pages
-        # )
 
         page = metadata.get("page")
 
